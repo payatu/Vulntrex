@@ -193,7 +193,7 @@ export default function RunGarakPage() {
     const [customDetectors, setCustomDetectors] = useState("");
     const [generations, setGenerations] = useState(3);
     const [seed, setSeed] = useState<number | "">("");
-    const [garakCommand, setGarakCommand] = useState("python3 -m garak");
+    // SECURITY: garakCommand removed - now configured via server-side environment variables
 
     const [availableProbes, setAvailableProbes] = useState<string[]>([]);
     const [availableDetectors, setAvailableDetectors] = useState<string[]>([]);
@@ -266,8 +266,7 @@ export default function RunGarakPage() {
                     detectors: allDetectors.join(","),
                     generations,
                     seed: seed === "" ? undefined : Number(seed),
-
-                    garakCommand,
+                    // SECURITY: garakCommand removed - configured via server-side env vars
                     // REST Config
                     restConfig: provider === 'rest' ? {
                         uri: restUri,
@@ -315,7 +314,8 @@ export default function RunGarakPage() {
     const fetchAvailable = async (type: 'probes' | 'detectors') => {
         setIsFetchingList(true);
         try {
-            const res = await fetch(`/api/garak/list?type=${type}&command=${encodeURIComponent(garakCommand)}`);
+            // SECURITY: Command is now configured server-side via environment variables
+            const res = await fetch(`/api/garak/list?type=${type}`);
             const data = await res.json();
             if (data.items) {
                 if (type === 'probes') setAvailableProbes(data.items);
@@ -1056,20 +1056,7 @@ export default function RunGarakPage() {
                                                     disabled={isRunning}
                                                 />
                                             </div>
-                                            <div className="col-span-2">
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Garak Command</label>
-                                                <div className="relative">
-                                                    <input
-                                                        type="text"
-                                                        value={garakCommand}
-                                                        onChange={(e) => setGarakCommand(e.target.value)}
-                                                        className="w-full pl-4 pr-12 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
-                                                        placeholder="python3 -m garak"
-                                                        disabled={isRunning}
-                                                    />
-                                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-mono border border-gray-200 dark:border-gray-700 px-2 py-1 rounded">CMD</div>
-                                                </div>
-                                            </div>
+                                            {/* SECURITY: Garak Command input removed - now configured via GARAK_COMMAND and GARAK_MODULE environment variables */}
                                         </div>
                                     </div>
 
