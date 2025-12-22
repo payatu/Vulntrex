@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "child_process";
 
+// SECURITY: Use server-side configuration only via environment variables
+// This prevents command injection attacks from user-controlled input
+const GARAK_COMMAND = process.env.GARAK_COMMAND || "python";
+const GARAK_MODULE = process.env.GARAK_MODULE || "garak";
+
 export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const type = searchParams.get("type"); // 'probes' or 'detectors'
-    const garakCommand = searchParams.get("command") || "python3 -m garak";
+    // SECURITY: Removed user-controlled command parameter - now uses environment variables
 
     if (type !== "probes" && type !== "detectors") {
         return NextResponse.json({ error: "Invalid type. Must be 'probes' or 'detectors'" }, { status: 400 });
@@ -12,10 +17,9 @@ export async function GET(req: NextRequest) {
 
     const flag = type === "probes" ? "--list_probes" : "--list_detectors";
 
-    // Parse command
-    const cmdParts = garakCommand.split(" ").filter(Boolean);
-    const command = cmdParts[0];
-    const args = [...cmdParts.slice(1), flag];
+    // SECURITY: Use fixed command structure from environment variables
+    const command = GARAK_COMMAND;
+    const args = ["-m", GARAK_MODULE, flag];
 
     try {
         const items = await new Promise<string[]>((resolve, reject) => {

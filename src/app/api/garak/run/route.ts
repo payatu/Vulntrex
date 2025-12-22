@@ -10,6 +10,16 @@ const RUNS_FILE = path.join(DATA_DIR, "active_runs.json");
 const LOGS_DIR = path.join(DATA_DIR, "logs");
 const CONFIGS_DIR = path.join(DATA_DIR, "configs");
 
+// SECURITY: Use server-side configuration only via environment variables
+// This prevents command injection attacks from user-controlled input
+const GARAK_COMMAND = process.env.GARAK_COMMAND || "python";
+const GARAK_MODULE = process.env.GARAK_MODULE || "garak";
+
+// Validation patterns for user inputs that will be passed as command arguments
+const SAFE_MODEL_NAME_PATTERN = /^[a-zA-Z0-9._\-\/:]+$/;
+const SAFE_PROBE_PATTERN = /^[a-zA-Z0-9._,\-]+$/;
+const SAFE_PROVIDER_PATTERN = /^[a-zA-Z0-9._\-]+$/;
+
 // Ensure directories exist
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(LOGS_DIR)) fs.mkdirSync(LOGS_DIR, { recursive: true });
@@ -18,21 +28,40 @@ if (!fs.existsSync(CONFIGS_DIR)) fs.mkdirSync(CONFIGS_DIR, { recursive: true });
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { provider, model_name, api_key, probes, detectors, generations, seed, garakCommand, restConfig } = body;
+        // SECURITY: Removed garakCommand from user input - now configured via environment variables
+        const { provider, model_name, api_key, probes, detectors, generations, seed, restConfig } = body;
 
         if (!model_name && provider !== 'rest') {
             return NextResponse.json({ error: "Model name is required" }, { status: 400 });
+        }
+
+        // SECURITY: Validate all user inputs that will be used in command arguments
+        if (model_name && !SAFE_MODEL_NAME_PATTERN.test(model_name)) {
+            return NextResponse.json({ error: "Invalid model name format. Only alphanumeric characters, dots, dashes, underscores, colons, and slashes are allowed." }, { status: 400 });
+        }
+        if (provider && !SAFE_PROVIDER_PATTERN.test(provider)) {
+            return NextResponse.json({ error: "Invalid provider format." }, { status: 400 });
+        }
+        if (probes && !SAFE_PROBE_PATTERN.test(probes)) {
+            return NextResponse.json({ error: "Invalid probes format. Only alphanumeric characters, dots, commas, dashes, and underscores are allowed." }, { status: 400 });
+        }
+        if (detectors && !SAFE_PROBE_PATTERN.test(detectors)) {
+            return NextResponse.json({ error: "Invalid detectors format. Only alphanumeric characters, dots, commas, dashes, and underscores are allowed." }, { status: 400 });
+        }
+        if (generations !== undefined && (typeof generations !== 'number' || generations < 1 || generations > 10000 || !Number.isInteger(generations))) {
+            return NextResponse.json({ error: "Invalid generations value. Must be an integer between 1 and 10000." }, { status: 400 });
+        }
+        if (seed !== undefined && seed !== "" && seed !== null && (typeof seed !== 'number' || !Number.isInteger(seed))) {
+            return NextResponse.json({ error: "Invalid seed value. Must be an integer." }, { status: 400 });
         }
 
         const runId = uuidv4();
         const logFile = path.join(LOGS_DIR, `${runId}.log`);
         const reportPrefix = `garak_${runId}`;
 
-        // Parse garak command (e.g. "python -m garak" -> ["python", "-m", "garak"])
-        // Default to ["python", "-m", "garak"] if not provided
-        const cmdParts = (garakCommand || "python -m garak").split(" ").filter(Boolean);
-        const command = cmdParts[0];
-        const initialArgs = cmdParts.slice(1);
+        // SECURITY: Use fixed command structure from environment variables, not user input
+        const command = GARAK_COMMAND;
+        const initialArgs = ["-m", GARAK_MODULE];
 
         // Construct command args
         const args = [...initialArgs];
