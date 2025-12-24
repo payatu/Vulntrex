@@ -112,7 +112,7 @@ Default: 5, Recommended for quick tests: 3
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/Vulntrex.git
+git clone https://github.com/payatu/Vulntrex.git
 cd Vulntrex
 
 # Install dependencies
