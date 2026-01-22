@@ -148,6 +148,14 @@ The main landing page showing:
 - Quick statistics
 - Navigation to other sections
 
+### Learn Garak (`/learngarak`)
+Step-by-step installation guide for Garak:
+- Prerequisites check (Python 3.10+, pip)
+- Virtual environment setup
+- Garak installation via pip
+- Verification steps
+- Interactive progress tracking
+
 ### Run Scan (`/run`)
 Execute new Garak scans with:
 - **Provider selection** - Choose LLM provider (HuggingFace, OpenAI, REST, etc.)
@@ -298,24 +306,19 @@ python -m garak -m huggingface -n gpt2 -p lmrc.SlurUsage
 # Run with REST generator
 python -m garak -m rest -n "http://api.example.com" -p dan.Dan
 ```
-
-### Vulntrex File Structure
-
-```
-Vulntrex/
-├── src/app/
-│   ├── page.tsx          # Dashboard
-│   ├── run/page.tsx      # Run scans
-│   ├── runs/page.tsx     # List runs
-│   ├── upload/page.tsx   # Upload reports
-│   └── api/              # Backend APIs
-├── data/
-│   ├── runs/             # Stored scan results
-│   └── logs/             # Scan logs
-└── package.json
-```
-
 ---
+
+## Maintainers
+
+### Project Lead
+- **Suraj Kumar** - 
+- [Linkedin](https://www.linkedin.com/in/surajkum4r)
+- [X](https://x.com/surajkum4r)
+
+### Developer
+- **Akshay Vollala** - 
+- [Linkedin](https://www.linkedin.com/in/akshayvollala)
+- [GitHub](https://github.com/banditAkshayV)
 
 ## Support
 

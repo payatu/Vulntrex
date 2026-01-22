@@ -14,13 +14,9 @@ export default function UploadPage() {
       setMessage("❌ Report JSONL file is required");
       return;
     }
-    if (!hitlogFile) {
-      setMessage("❌ Hitlog JSONL file is required for vulnerability analysis");
-      return;
-    }
     const form = new FormData();
     form.append("report", reportFile);
-    form.append("hitlog", hitlogFile);
+    if (hitlogFile) form.append("hitlog", hitlogFile);
     setLoading(true);
     setMessage("");
     try {
@@ -94,11 +90,14 @@ export default function UploadPage() {
                 </div>
               </div>
 
-              {/* Hitlog File */}
+              {/* Hitlog File (Optional) */}
               <div className="group">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Hitlog File <span className="text-red-500">*</span>
+                  Hitlog File <span className="text-gray-400 dark:text-gray-500 font-normal">(optional)</span>
                 </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                  If Garak generated a hitlog, upload it here to map and inspect vulnerability hits.
+                </p>
                 <div
                   className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all ${hitlogFile ? 'border-green-400 bg-green-50 dark:bg-green-900/10' : 'border-gray-300 dark:border-gray-600 hover:border-purple-400 dark:hover:border-purple-500 hover:bg-gray-50 dark:hover:bg-slate-800/50'}`}
                 >
@@ -121,7 +120,7 @@ export default function UploadPage() {
                           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                         </div>
                         <span className="text-sm font-medium">Click to upload hitlog.jsonl</span>
-                        <span className="text-xs mt-1">Recommended for full analysis</span>
+                        <span className="text-xs mt-1">Optional — some scans may not produce hits</span>
                       </div>
                     )}
                   </div>
@@ -190,9 +189,9 @@ export default function UploadPage() {
 
               <div className="relative pl-8">
                 <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 text-xs font-bold flex items-center justify-center ring-4 ring-white dark:ring-gray-800">2</div>
-                <h4 className="font-medium text-gray-900 dark:text-white mb-1">Add Hitlog</h4>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-1">Hitlog (optional)</h4>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Include <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs font-mono">hitlog.jsonl</code> to see detailed vulnerability evidence, including the exact prompts and responses that triggered detectors.
+                  If Garak generated <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs font-mono">hitlog.jsonl</code>, upload it to map and inspect vulnerability hits. Not all scans produce a hitlog.
                 </p>
               </div>
 
