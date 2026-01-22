@@ -49,14 +49,28 @@ export async function parseGarakReport(reportPath: string): Promise<NormalizedRu
       const at = entry as GarakAttemptEntry;
       // Show ALL attempts from report (both status 1 and status 2)
       const firstUser = at.prompt?.turns?.find((t) => t.role === "user");
+      const promptText = typeof firstUser?.content === "string"
+        ? firstUser.content
+        : (firstUser?.content as { text?: string } | null)?.text ?? "";
+      // Garak outputs: can be [{ text, lang }], plain [string], or [{ content }]
+      const rawOutputs = at.outputs ?? (at as { generations?: unknown[] }).generations ?? [];
+      const outputs: string[] = (Array.isArray(rawOutputs) ? rawOutputs : []).map((o) => {
+        if (o == null) return "";
+        if (typeof o === "string") return o;
+        if (typeof o === "object" && o !== null) {
+          const obj = o as { text?: string; content?: string };
+          return obj.text ?? obj.content ?? "";
+        }
+        return String(o);
+      });
       attempts.push({
         uuid: at.uuid,
         seq: at.seq,
         status: at.status,
         probe: at.probe_classname,
         goal: at.goal,
-        prompt: firstUser?.content?.text ?? "",
-        outputs: (at.outputs ?? []).map((o) => o?.text ?? ""),
+        prompt: promptText,
+        outputs,
         detectorResults: at.detector_results ?? {},
       });
     } else if ((entry as GarakEvalEntry).entry_type === "eval") {
