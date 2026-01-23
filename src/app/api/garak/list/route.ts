@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "child_process";
 
 // SECURITY: Use server-side configuration only via environment variables
-// This prevents command injection attacks from user-controlled input
+// This prevents command injection attacks from user-controlled input if deployed over network
 const GARAK_COMMAND = process.env.GARAK_COMMAND || "python";
 const GARAK_MODULE = process.env.GARAK_MODULE || "garak";
 
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
                     const stripEmoji = (str: string) => str.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|💤|🌟/gu, "").trim();
 
                     const prefix = type === "probes" ? "probes:" : "detectors:";
-
+// Need help in parsing of probes & detectors category wise
                     const parsedItems = output.split("\n")
                         .map(l => stripAnsi(l).trim())
                         .filter(l => l.startsWith(prefix)) // Only lines starting with probes: or detectors:

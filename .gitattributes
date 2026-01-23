@@ -1,4 +1,2 @@
-*.json filter=lfs diff=lfs merge=lfs -text
-*.jsonl filter=lfs diff=lfs merge=lfs -text
 package.json !text !filter !merge !diff
 tsconfig.json !text !filter !merge !diff
