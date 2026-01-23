@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 export interface RunListItem {
   id: string;
@@ -18,6 +18,11 @@ export default function RunsClient({ runs }: { runs: RunListItem[] }) {
   const [to, setTo] = useState("");
   const [showOnlyHits, setShowOnlyHits] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const models = useMemo(() => Array.from(new Set(runs.map((r) => r.model).filter(Boolean))) as string[], [runs]);
   const probes = useMemo(() => Array.from(new Set(runs.map((r) => r.probe).filter(Boolean))) as string[], [runs]);
@@ -271,7 +276,7 @@ export default function RunsClient({ runs }: { runs: RunListItem[] }) {
 
                 <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  {r.startTime ? new Date(r.startTime).toLocaleString() : 'Unknown Date'}
+                  {isMounted && r.startTime ? new Date(r.startTime).toLocaleString() : r.startTime ? new Date(r.startTime).toISOString().replace('T', ' ').substring(0, 19) : 'Unknown Date'}
                 </div>
               </div>
 
