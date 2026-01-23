@@ -1,8 +1,17 @@
 @import "tailwindcss";
 
+/* Use .dark class on <html> for dark mode (toggle), not prefers-color-scheme */
+@custom-variant dark (.dark &);
+
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
+}
+
+/* Dark mode: only when .dark is on the root */
+.dark {
+  --background: #020617;
+  --foreground: #f1f5f9;
 }
 
 @theme inline {
@@ -10,15 +19,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #020617;
-    /* slate-950 */
-    --foreground: #f1f5f9;
-    /* slate-100 */
-  }
 }
 
 body {

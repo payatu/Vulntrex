@@ -95,14 +95,14 @@ export default function RunDetailClient({ runId, probes }: { runId: string; prob
     return (
         <div className="space-y-8">
             {/* Sticky Filters Bar */}
-            <div className="sticky top-[154px] z-20 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 transition-all shadow-sm">
-                <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-4">
+            <div className="sticky top-16 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm transition-all">
+                <div className="p-4 flex flex-wrap items-end gap-4">
                     <div className="flex-1 min-w-[200px]">
                         <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 ml-1">Probe Filter</label>
                         <select
                             value={probeFilter}
                             onChange={(e) => setProbeFilter(e.target.value)}
-                            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 dark:text-white transition-all hover:bg-gray-100 dark:hover:bg-gray-750"
+                            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 dark:text-white transition-all hover:bg-gray-100 dark:hover:bg-gray-700"
                         >
                             <option value="">All Probes</option>
                             {probeNames.map((n) => (
@@ -115,7 +115,7 @@ export default function RunDetailClient({ runId, probes }: { runId: string; prob
                         <select
                             value={detectorFilter}
                             onChange={(e) => setDetectorFilter(e.target.value)}
-                            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 dark:text-white transition-all hover:bg-gray-100 dark:hover:bg-gray-750"
+                            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 dark:text-white transition-all hover:bg-gray-100 dark:hover:bg-gray-700"
                         >
                             <option value="">All Detectors</option>
                             {detectorNames.map((n) => (
@@ -136,7 +136,7 @@ export default function RunDetailClient({ runId, probes }: { runId: string; prob
                         </div>
                     </div>
                     <div className="flex items-end pb-1 h-[62px]">
-                        <label className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-800 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-750 transition-all select-none group border border-transparent hover:border-blue-200 dark:hover:border-blue-800">
+                        <label className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-800 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-all select-none group border border-transparent hover:border-blue-200 dark:hover:border-blue-800">
                             <input
                                 type="checkbox"
                                 checked={hitsOnly}
@@ -180,8 +180,8 @@ export default function RunDetailClient({ runId, probes }: { runId: string; prob
                 </button>
 
                 {showVisualAnalysis && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fadeIn">
-                        {/* Enhanced probe score visualization */}
+                    <div className="flex flex-col gap-6 animate-fadeIn">
+                        {/* Probe Performance - first row */}
                         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                             <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100 dark:border-gray-700">
                                 <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -249,7 +249,7 @@ export default function RunDetailClient({ runId, probes }: { runId: string; prob
                             )}
                         </div>
 
-                        {/* heatmap */}
+                        {/* Vulnerability Heatmap - second row, full width */}
                         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                             <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100 dark:border-gray-700">
                                 <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -280,7 +280,7 @@ export default function RunDetailClient({ runId, probes }: { runId: string; prob
                             href={`/api/runs/${runId}/export`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-750 hover:border-gray-300 dark:hover:border-gray-600 transition-all shadow-sm hover:shadow"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all shadow-sm hover:shadow"
                         >
                             <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -315,7 +315,7 @@ export default function RunDetailClient({ runId, probes }: { runId: string; prob
                         return (
                             <div
                                 key={`${a.uuid}-${a.seq}-${index}`}
-                                className={`group transition-all duration-200 ${isExpanded ? 'bg-blue-50/30 dark:bg-blue-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-750'}`}
+                                className={`group transition-all duration-200 ${isExpanded ? 'bg-blue-50/30 dark:bg-blue-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                             >
                                 <div
                                     className="px-6 py-4 cursor-pointer select-none"
