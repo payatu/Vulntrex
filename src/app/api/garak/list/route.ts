@@ -9,20 +9,17 @@ const GARAK_MODULE = process.env.GARAK_MODULE || "garak";
 export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const type = searchParams.get("type"); // 'probes' or 'detectors'
-    // SECURITY: Removed user-controlled command parameter - now uses environment variables
 
     if (type !== "probes" && type !== "detectors") {
         return NextResponse.json({ error: "Invalid type. Must be 'probes' or 'detectors'" }, { status: 400 });
     }
 
     const flag = type === "probes" ? "--list_probes" : "--list_detectors";
-
-    // SECURITY: Use fixed command structure from environment variables
     const command = GARAK_COMMAND;
     const args = ["-m", GARAK_MODULE, flag];
 
     try {
-        const items = await new Promise<string[]>((resolve, reject) => {
+        const items = await new Promise<any[]>((resolve, reject) => {
             const child = spawn(command, args, {
                 shell: true,
             });
@@ -39,37 +36,83 @@ export async function GET(req: NextRequest) {
             });
 
             child.on("close", (code) => {
-                if (code !== 0) {
-                    console.error(`Garak list failed: ${error}`);
-                    reject(new Error(error || "Command failed"));
-                } else {
-                    // Parse output
-                    // Garak list output format varies, but usually lines of "module.Class description"
-                    // We'll split by lines and filter
+                // Parse Logic
 
-                    // Helper to strip ANSI codes
-                    const stripAnsi = (str: string) => str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, "");
+                // Helper to strip ANSI codes
+                const stripAnsi = (str: string) => str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, "");
 
-                    // Remove emojis and other special characters
-                    const stripEmoji = (str: string) => str.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|💤|🌟/gu, "").trim();
+                const lines = output.split("\n").map(l => stripAnsi(l));
 
-                    const prefix = type === "probes" ? "probes:" : "detectors:";
-// Need help in parsing of probes & detectors category wise
-                    const parsedItems = output.split("\n")
-                        .map(l => stripAnsi(l).trim())
-                        .filter(l => l.startsWith(prefix)) // Only lines starting with probes: or detectors:
-                        .map(l => stripEmoji(l.substring(prefix.length).trim())) // Remove prefix and emojis
-                        .filter(l => l.includes(".")) // Valid modules have a dot (e.g., ansiescape.AnsiEscaped)
-                        .map(l => l.split(/\s+/)[0]) // Get just the module.Class part
-                        .filter(l => l && l.length > 0);
-
-                    resolve(parsedItems);
+                interface ProbeItem {
+                    name: string;
+                    isActive: boolean;
                 }
+
+                const groups: Record<string, ProbeItem[]> = {};
+                let currentCategory = "Uncategorized";
+
+                lines.forEach(l => {
+                    // Check for Plugin/Category line (ends with 🌟)
+                    if (l.includes("🌟")) {
+                        const match = l.match(/probes:\s+([a-zA-Z0-9_]+)\s+🌟/);
+                        if (match) {
+                            currentCategory = match[1];
+                            if (!groups[currentCategory]) groups[currentCategory] = [];
+                        }
+                        return;
+                    }
+
+                    // Check for Probe/Detector line (contains . and possibly 💤)
+                    if (l.includes(".")) {
+                        const isActive = !l.includes("💤");
+                        // Robust match for module.Class
+                        const match = l.match(/\b(?<!garak\.)([a-zA-Z0-9_]+\.[a-zA-Z0-9_]+)\b/);
+
+                        if (match) {
+                            const name = match[1];
+                            if (name.length > 3 && !name.startsWith("garak.")) {
+                                // Determine category
+                                let category = currentCategory;
+
+                                // Heuristic: If still "Uncategorized", try prefix
+                                if (category === "Uncategorized") {
+                                    const parts = name.split(".");
+                                    if (parts.length > 0) category = parts[0];
+                                }
+
+                                if (!groups[category]) groups[category] = [];
+
+                                if (!groups[category].some(p => p.name === name)) {
+                                    groups[category].push({ name, isActive });
+                                }
+                            }
+                        }
+                    }
+                });
+
+                const parsedItems = Object.entries(groups).map(([name, probes]) => ({
+                    name,
+                    probes: probes.sort((a, b) => a.name.localeCompare(b.name))
+                })).sort((a, b) => a.name.localeCompare(b.name));
+
+                if (code !== 0) {
+                    console.warn(`Garak list command failed with code ${code}: ${error}`);
+                }
+                resolve(parsedItems);
+            });
+
+            // Handle spawn errors
+            child.on('error', (err) => {
+                console.error("Spawn error:", err);
+                // Return empty list on spawn error
+                resolve([]);
             });
         });
 
         return NextResponse.json({ items });
     } catch (e) {
-        return NextResponse.json({ error: String(e) }, { status: 500 });
+        console.error("API error:", e);
+        // Error case: Return empty list. NO FALLBACKS.
+        return NextResponse.json({ items: [] });
     }
 }
