@@ -11,31 +11,34 @@ const PROBE_CATEGORIES = {
         "lmrc.SexualContent",
     ],
     "Jailbreak": [
-        "dan.Dan",
+        "dan.DAN_Jailbreak",
         "dan.Dan_10_0",
         "dan.Dan_11_0",
-        "jailbreak.Leetspeak",
+        "dan.DanInTheWild",
     ],
     "Prompt Injection": [
-        "promptinject.Hijack",
-        "promptinject.RogueString",
+        "promptinject.HijackHateHumans",
+        "promptinject.HijackKillHumans",
+        "promptinject.HijackLongPrompt",
     ],
     "Hallucination": [
-        "snowball.Snowball",
+        "snowball.GraphConnectivity",
     ],
     "Encoding": [
         "encoding.InjectBase64",
-        "encoding.InjectRot13",
+        "encoding.InjectROT13",
+        "encoding.InjectAscii85",
     ],
     "XSS": [
-        "xss.MarkdownImageExfil",
+        "web_injection.MarkdownImageExfil",
+        "web_injection.MarkdownXSS",
     ],
 };
 
 const DETECTORS = [
     "mitigation.MitigationBypass",
     "unsafe_content.SurgeProfanitySexual",
-    "base.TriggerListDetector",
+    "promptinject.AttackRogueString",
 ];
 
 const PROVIDERS = [
@@ -65,10 +68,12 @@ const Tooltip = ({ text }: { text: string }) => (
 interface ProbeItem {
     name: string;
     isActive: boolean;
+    isDisabledByDefault?: boolean;
 }
 
 interface ProbeGroup {
     name: string;
+    isPlugin?: boolean;
     probes: ProbeItem[];
 }
 
@@ -338,6 +343,11 @@ export default function RunGarakPage() {
         } finally {
             setIsFetchingList(false);
         }
+    };
+
+    const getDefaultEnabledNames = (items: ProbeItem[]) => {
+        const enabled = items.filter((item) => item.isActive).map((item) => item.name);
+        return enabled.length > 0 ? enabled : items.map((item) => item.name);
     };
 
     const toggleProbe = (probe: string) => {
@@ -948,19 +958,25 @@ export default function RunGarakPage() {
 
                                                     {/* Fetched Probes */}
                                                     {/* Categorized Discovered Probes */}
-                                                    {Array.isArray(availableProbes) && availableProbes.length > 0 && (typeof availableProbes[0] === 'object') && (
+                                                    {availableProbes.length > 0 && (
                                                         <div className="space-y-4">
                                                             <div className="flex items-center gap-2">
                                                                 <div className="h-px bg-gray-200 dark:bg-gray-700 w-4"></div>
                                                                 <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Discovered Modules</span>
                                                                 <div className="h-px bg-gray-200 dark:bg-gray-700 flex-1"></div>
                                                             </div>
+                                                            <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                                                                🌟 Plugin module. 💤 Disabled by default (not auto-selected when module is run).
+                                                            </p>
 
-                                                            {(availableProbes as any[]).map((group: { name: string, probes: { name: string, isActive: boolean }[] }) => (
+                                                            {availableProbes.map((group) => (
                                                                 <div key={group.name} className="border border-gray-200 dark:border-gray-800 rounded-lg p-3 bg-gray-50/30 dark:bg-gray-900/10">
                                                                     <div className="flex items-center justify-between mb-2">
                                                                         <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
                                                                             {group.name}
+                                                                            {group.isPlugin && (
+                                                                                <span className="text-xs" title="Plugin module">🌟</span>
+                                                                            )}
                                                                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-mono">
                                                                                 {group.probes.length}
                                                                             </span>
@@ -968,7 +984,7 @@ export default function RunGarakPage() {
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => {
-                                                                                const groupProbeNames = group.probes.map(p => p.name);
+                                                                                const groupProbeNames = getDefaultEnabledNames(group.probes);
                                                                                 const allSelected = groupProbeNames.every(name => selectedProbes.includes(name));
                                                                                 if (allSelected) {
                                                                                     setSelectedProbes(selectedProbes.filter(p => !groupProbeNames.includes(p)));
@@ -979,7 +995,7 @@ export default function RunGarakPage() {
                                                                             }}
                                                                             className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline"
                                                                         >
-                                                                            Select All
+                                                                            Select Default
                                                                         </button>
                                                                     </div>
                                                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -1003,9 +1019,8 @@ export default function RunGarakPage() {
                                                                                         {probe.name}
                                                                                     </span>
                                                                                     {!probe.isActive && (
-                                                                                        <span className="text-[9px] text-amber-600 dark:text-amber-500 flex items-center gap-1">
-                                                                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                                                                                            Disabled by default
+                                                                                        <span className="text-[9px] text-amber-600 dark:text-amber-500">
+                                                                                            💤 Disabled by default
                                                                                         </span>
                                                                                     )}
                                                                                 </div>
@@ -1055,12 +1070,18 @@ export default function RunGarakPage() {
                                                                 <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Discovered Detectors</span>
                                                                 <div className="h-px bg-gray-200 dark:bg-gray-700 flex-1"></div>
                                                             </div>
+                                                            <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                                                                🌟 Plugin module. 💤 Disabled by default (not auto-selected when module is run).
+                                                            </p>
 
                                                             {availableDetectors.map((group) => (
                                                                 <div key={group.name} className="border border-gray-200 dark:border-gray-800 rounded-lg p-3 bg-gray-50/30 dark:bg-gray-900/10">
                                                                     <div className="flex items-center justify-between mb-2">
                                                                         <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
                                                                             {group.name}
+                                                                            {group.isPlugin && (
+                                                                                <span className="text-xs" title="Plugin module">🌟</span>
+                                                                            )}
                                                                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 font-mono">
                                                                                 {group.probes.length}
                                                                             </span>
@@ -1068,7 +1089,7 @@ export default function RunGarakPage() {
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => {
-                                                                                const groupNames = group.probes.map(p => p.name);
+                                                                                const groupNames = getDefaultEnabledNames(group.probes);
                                                                                 const allSelected = groupNames.every(name => selectedDetectors.includes(name));
                                                                                 if (allSelected) {
                                                                                     setSelectedDetectors(selectedDetectors.filter(d => !groupNames.includes(d)));
@@ -1079,7 +1100,7 @@ export default function RunGarakPage() {
                                                                             }}
                                                                             className="text-[10px] text-purple-600 dark:text-purple-400 hover:underline"
                                                                         >
-                                                                            Select All
+                                                                            Select Default
                                                                         </button>
                                                                     </div>
                                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -1103,9 +1124,8 @@ export default function RunGarakPage() {
                                                                                         {probe.name}
                                                                                     </span>
                                                                                     {!probe.isActive && (
-                                                                                        <span className="text-[9px] text-amber-600 dark:text-amber-500 flex items-center gap-1">
-                                                                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                                                                                            Disabled
+                                                                                        <span className="text-[9px] text-amber-600 dark:text-amber-500">
+                                                                                            💤 Disabled by default
                                                                                         </span>
                                                                                     )}
                                                                                 </div>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import fs from "fs";
 import path from "path";
+import packageJson from "../../package.json";
 
 function getStats() {
   const runsDir = path.join(process.cwd(), "data", "runs");
@@ -30,6 +31,7 @@ function getStats() {
 export default function Home() {
   const stats = getStats();
   const appName = "Vulntrex";
+  const appVersion = `v${packageJson.version}`;
 
   return (
     <div className="min-h-[calc(100vh-80px)] bg-gradient-to-b from-gray-50 to-white dark:from-slate-950 dark:to-slate-900">
@@ -39,7 +41,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 relative z-10 text-center">
           <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-50 dark:bg-slate-800/50 border border-blue-100 dark:border-slate-700 mb-8 backdrop-blur-sm">
             <span className="flex h-2 w-2 rounded-full bg-blue-500 mr-2 animate-pulse"></span>
-            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">v0.2.0 Beta</span>
+            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{appVersion}</span>
           </div>
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6">
             <span className="block text-gray-900 dark:text-white">Secure your LLMs with</span>

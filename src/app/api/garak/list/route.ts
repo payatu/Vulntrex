@@ -6,6 +6,87 @@ import { spawn } from "child_process";
 const GARAK_COMMAND = process.env.GARAK_COMMAND || "python";
 const GARAK_MODULE = process.env.GARAK_MODULE || "garak";
 
+interface ListItem {
+    name: string;
+    isActive: boolean;
+    isDisabledByDefault: boolean;
+}
+
+interface ListGroup {
+    name: string;
+    isPlugin: boolean;
+    probes: ListItem[];
+}
+
+const ANSI_PATTERN = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
+const STAR_MARKERS = ["\u{1F31F}", "\u00F0\u0178\u0152\u0178"];
+const SLEEP_MARKERS = ["\u{1F4A4}", "\u00F0\u0178\u2019\u00A4"];
+
+const stripAnsi = (value: string) => value.replace(ANSI_PATTERN, "");
+const hasMarker = (value: string, markers: string[]) => markers.some((marker) => value.includes(marker));
+
+function parseListOutput(rawOutput: string, type: "probes" | "detectors"): ListGroup[] {
+    const linePattern = new RegExp(`^${type}:\\s+([A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)?)(?:\\s+(.*))?$`);
+    const groupedItems = new Map<string, ListItem[]>();
+    const groupMeta = new Map<string, { isPlugin: boolean }>();
+
+    for (const rawLine of rawOutput.split(/\r?\n/)) {
+        const line = stripAnsi(rawLine).trim();
+        if (!line.startsWith(`${type}:`)) {
+            continue;
+        }
+
+        const match = line.match(linePattern);
+        if (!match) {
+            continue;
+        }
+
+        const identifier = match[1];
+        const suffix = (match[2] ?? "").trim();
+        const hasStar = hasMarker(suffix, STAR_MARKERS);
+        const hasSleep = hasMarker(suffix, SLEEP_MARKERS) || hasMarker(line, SLEEP_MARKERS);
+
+        if (!identifier.includes(".")) {
+            const currentMeta = groupMeta.get(identifier) ?? { isPlugin: false };
+            currentMeta.isPlugin = currentMeta.isPlugin || hasStar;
+            groupMeta.set(identifier, currentMeta);
+
+            if (!groupedItems.has(identifier)) {
+                groupedItems.set(identifier, []);
+            }
+
+            continue;
+        }
+
+        const groupName = identifier.split(".")[0];
+        if (!groupName) {
+            continue;
+        }
+
+        const currentMeta = groupMeta.get(groupName) ?? { isPlugin: false };
+        currentMeta.isPlugin = currentMeta.isPlugin || hasStar;
+        groupMeta.set(groupName, currentMeta);
+
+        const existing = groupedItems.get(groupName) ?? [];
+        if (!existing.some((item) => item.name === identifier)) {
+            existing.push({
+                name: identifier,
+                isActive: !hasSleep,
+                isDisabledByDefault: hasSleep,
+            });
+        }
+        groupedItems.set(groupName, existing);
+    }
+
+    return [...groupedItems.entries()]
+        .map(([name, probes]) => ({
+            name,
+            isPlugin: groupMeta.get(name)?.isPlugin ?? false,
+            probes: probes.sort((a, b) => a.name.localeCompare(b.name)),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const type = searchParams.get("type"); // 'probes' or 'detectors'
@@ -19,7 +100,7 @@ export async function GET(req: NextRequest) {
     const args = ["-m", GARAK_MODULE, flag];
 
     try {
-        const items = await new Promise<any[]>((resolve, reject) => {
+        const items = await new Promise<ListGroup[]>((resolve) => {
             const child = spawn(command, args, {
                 shell: true,
             });
@@ -36,73 +117,17 @@ export async function GET(req: NextRequest) {
             });
 
             child.on("close", (code) => {
-                // Parse Logic
-
-                // Helper to strip ANSI codes
-                const stripAnsi = (str: string) => str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, "");
-
-                const lines = output.split("\n").map(l => stripAnsi(l));
-
-                interface ProbeItem {
-                    name: string;
-                    isActive: boolean;
-                }
-
-                const groups: Record<string, ProbeItem[]> = {};
-                let currentCategory = "Uncategorized";
-
-                lines.forEach(l => {
-                    // Check for Plugin/Category line (ends with 🌟)
-                    if (l.includes("🌟")) {
-                        const match = l.match(/probes:\s+([a-zA-Z0-9_]+)\s+🌟/);
-                        if (match) {
-                            currentCategory = match[1];
-                            if (!groups[currentCategory]) groups[currentCategory] = [];
-                        }
-                        return;
-                    }
-
-                    // Check for Probe/Detector line (contains . and possibly 💤)
-                    if (l.includes(".")) {
-                        const isActive = !l.includes("💤");
-                        // Robust match for module.Class
-                        const match = l.match(/\b(?<!garak\.)([a-zA-Z0-9_]+\.[a-zA-Z0-9_]+)\b/);
-
-                        if (match) {
-                            const name = match[1];
-                            if (name.length > 3 && !name.startsWith("garak.")) {
-                                // Determine category
-                                let category = currentCategory;
-
-                                // Heuristic: If still "Uncategorized", try prefix
-                                if (category === "Uncategorized") {
-                                    const parts = name.split(".");
-                                    if (parts.length > 0) category = parts[0];
-                                }
-
-                                if (!groups[category]) groups[category] = [];
-
-                                if (!groups[category].some(p => p.name === name)) {
-                                    groups[category].push({ name, isActive });
-                                }
-                            }
-                        }
-                    }
-                });
-
-                const parsedItems = Object.entries(groups).map(([name, probes]) => ({
-                    name,
-                    probes: probes.sort((a, b) => a.name.localeCompare(b.name))
-                })).sort((a, b) => a.name.localeCompare(b.name));
+                const parsedItems = parseListOutput(output, type);
 
                 if (code !== 0) {
                     console.warn(`Garak list command failed with code ${code}: ${error}`);
                 }
+
                 resolve(parsedItems);
             });
 
             // Handle spawn errors
-            child.on('error', (err) => {
+            child.on("error", (err) => {
                 console.error("Spawn error:", err);
                 // Return empty list on spawn error
                 resolve([]);
