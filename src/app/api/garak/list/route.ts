@@ -6,23 +6,101 @@ import { spawn } from "child_process";
 const GARAK_COMMAND = process.env.GARAK_COMMAND || "python";
 const GARAK_MODULE = process.env.GARAK_MODULE || "garak";
 
+interface ListItem {
+    name: string;
+    isActive: boolean;
+    isDisabledByDefault: boolean;
+}
+
+interface ListGroup {
+    name: string;
+    isPlugin: boolean;
+    probes: ListItem[];
+}
+
+const ANSI_PATTERN = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
+const STAR_MARKERS = ["\u{1F31F}", "\u00F0\u0178\u0152\u0178"];
+const SLEEP_MARKERS = ["\u{1F4A4}", "\u00F0\u0178\u2019\u00A4"];
+
+const stripAnsi = (value: string) => value.replace(ANSI_PATTERN, "");
+const hasMarker = (value: string, markers: string[]) => markers.some((marker) => value.includes(marker));
+
+function parseListOutput(rawOutput: string, type: "probes" | "detectors"): ListGroup[] {
+    const linePattern = new RegExp(`^${type}:\\s+([A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)?)(?:\\s+(.*))?$`);
+    const groupedItems = new Map<string, ListItem[]>();
+    const groupMeta = new Map<string, { isPlugin: boolean }>();
+
+    for (const rawLine of rawOutput.split(/\r?\n/)) {
+        const line = stripAnsi(rawLine).trim();
+        if (!line.startsWith(`${type}:`)) {
+            continue;
+        }
+
+        const match = line.match(linePattern);
+        if (!match) {
+            continue;
+        }
+
+        const identifier = match[1];
+        const suffix = (match[2] ?? "").trim();
+        const hasStar = hasMarker(suffix, STAR_MARKERS);
+        const hasSleep = hasMarker(suffix, SLEEP_MARKERS) || hasMarker(line, SLEEP_MARKERS);
+
+        if (!identifier.includes(".")) {
+            const currentMeta = groupMeta.get(identifier) ?? { isPlugin: false };
+            currentMeta.isPlugin = currentMeta.isPlugin || hasStar;
+            groupMeta.set(identifier, currentMeta);
+
+            if (!groupedItems.has(identifier)) {
+                groupedItems.set(identifier, []);
+            }
+
+            continue;
+        }
+
+        const groupName = identifier.split(".")[0];
+        if (!groupName) {
+            continue;
+        }
+
+        const currentMeta = groupMeta.get(groupName) ?? { isPlugin: false };
+        currentMeta.isPlugin = currentMeta.isPlugin || hasStar;
+        groupMeta.set(groupName, currentMeta);
+
+        const existing = groupedItems.get(groupName) ?? [];
+        if (!existing.some((item) => item.name === identifier)) {
+            existing.push({
+                name: identifier,
+                isActive: !hasSleep,
+                isDisabledByDefault: hasSleep,
+            });
+        }
+        groupedItems.set(groupName, existing);
+    }
+
+    return [...groupedItems.entries()]
+        .map(([name, probes]) => ({
+            name,
+            isPlugin: groupMeta.get(name)?.isPlugin ?? false,
+            probes: probes.sort((a, b) => a.name.localeCompare(b.name)),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const type = searchParams.get("type"); // 'probes' or 'detectors'
-    // SECURITY: Removed user-controlled command parameter - now uses environment variables
 
     if (type !== "probes" && type !== "detectors") {
         return NextResponse.json({ error: "Invalid type. Must be 'probes' or 'detectors'" }, { status: 400 });
     }
 
     const flag = type === "probes" ? "--list_probes" : "--list_detectors";
-
-    // SECURITY: Use fixed command structure from environment variables
     const command = GARAK_COMMAND;
     const args = ["-m", GARAK_MODULE, flag];
 
     try {
-        const items = await new Promise<string[]>((resolve, reject) => {
+        const items = await new Promise<ListGroup[]>((resolve) => {
             const child = spawn(command, args, {
                 shell: true,
             });
@@ -39,37 +117,27 @@ export async function GET(req: NextRequest) {
             });
 
             child.on("close", (code) => {
+                const parsedItems = parseListOutput(output, type);
+
                 if (code !== 0) {
-                    console.error(`Garak list failed: ${error}`);
-                    reject(new Error(error || "Command failed"));
-                } else {
-                    // Parse output
-                    // Garak list output format varies, but usually lines of "module.Class description"
-                    // We'll split by lines and filter
-
-                    // Helper to strip ANSI codes
-                    const stripAnsi = (str: string) => str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, "");
-
-                    // Remove emojis and other special characters
-                    const stripEmoji = (str: string) => str.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|💤|🌟/gu, "").trim();
-
-                    const prefix = type === "probes" ? "probes:" : "detectors:";
-// Need help in parsing of probes & detectors category wise
-                    const parsedItems = output.split("\n")
-                        .map(l => stripAnsi(l).trim())
-                        .filter(l => l.startsWith(prefix)) // Only lines starting with probes: or detectors:
-                        .map(l => stripEmoji(l.substring(prefix.length).trim())) // Remove prefix and emojis
-                        .filter(l => l.includes(".")) // Valid modules have a dot (e.g., ansiescape.AnsiEscaped)
-                        .map(l => l.split(/\s+/)[0]) // Get just the module.Class part
-                        .filter(l => l && l.length > 0);
-
-                    resolve(parsedItems);
+                    console.warn(`Garak list command failed with code ${code}: ${error}`);
                 }
+
+                resolve(parsedItems);
+            });
+
+            // Handle spawn errors
+            child.on("error", (err) => {
+                console.error("Spawn error:", err);
+                // Return empty list on spawn error
+                resolve([]);
             });
         });
 
         return NextResponse.json({ items });
     } catch (e) {
-        return NextResponse.json({ error: String(e) }, { status: 500 });
+        console.error("API error:", e);
+        // Error case: Return empty list. NO FALLBACKS.
+        return NextResponse.json({ items: [] });
     }
 }

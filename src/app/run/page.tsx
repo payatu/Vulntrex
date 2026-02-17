@@ -11,31 +11,34 @@ const PROBE_CATEGORIES = {
         "lmrc.SexualContent",
     ],
     "Jailbreak": [
-        "dan.Dan",
+        "dan.DAN_Jailbreak",
         "dan.Dan_10_0",
         "dan.Dan_11_0",
-        "jailbreak.Leetspeak",
+        "dan.DanInTheWild",
     ],
     "Prompt Injection": [
-        "promptinject.Hijack",
-        "promptinject.RogueString",
+        "promptinject.HijackHateHumans",
+        "promptinject.HijackKillHumans",
+        "promptinject.HijackLongPrompt",
     ],
     "Hallucination": [
-        "snowball.Snowball",
+        "snowball.GraphConnectivity",
     ],
     "Encoding": [
         "encoding.InjectBase64",
-        "encoding.InjectRot13",
+        "encoding.InjectROT13",
+        "encoding.InjectAscii85",
     ],
     "XSS": [
-        "xss.MarkdownImageExfil",
+        "web_injection.MarkdownImageExfil",
+        "web_injection.MarkdownXSS",
     ],
 };
 
 const DETECTORS = [
     "mitigation.MitigationBypass",
     "unsafe_content.SurgeProfanitySexual",
-    "base.TriggerListDetector",
+    "promptinject.AttackRogueString",
 ];
 
 const PROVIDERS = [
@@ -61,6 +64,18 @@ const Tooltip = ({ text }: { text: string }) => (
         </div>
     </div>
 );
+
+interface ProbeItem {
+    name: string;
+    isActive: boolean;
+    isDisabledByDefault?: boolean;
+}
+
+interface ProbeGroup {
+    name: string;
+    isPlugin?: boolean;
+    probes: ProbeItem[];
+}
 
 export default function RunGarakPage() {
     const [provider, setProvider] = useState("huggingface");
@@ -195,8 +210,8 @@ export default function RunGarakPage() {
     const [seed, setSeed] = useState<number | "">("");
     // SECURITY: garakCommand removed - now configured via server-side environment variables
 
-    const [availableProbes, setAvailableProbes] = useState<string[]>([]);
-    const [availableDetectors, setAvailableDetectors] = useState<string[]>([]);
+    const [availableProbes, setAvailableProbes] = useState<ProbeGroup[]>([]);
+    const [availableDetectors, setAvailableDetectors] = useState<ProbeGroup[]>([]);
     const [isFetchingList, setIsFetchingList] = useState(false);
 
     const [isRunning, setIsRunning] = useState(false);
@@ -253,6 +268,8 @@ export default function RunGarakPage() {
 
         const allDetectors = [...selectedDetectors];
         if (customDetectors) allDetectors.push(...customDetectors.split(",").map(s => s.trim()));
+
+        console.log("Sending run request with probes:", allProbes.join(","));
 
         try {
             const res = await fetch("/api/garak/run", {
@@ -326,6 +343,11 @@ export default function RunGarakPage() {
         } finally {
             setIsFetchingList(false);
         }
+    };
+
+    const getDefaultEnabledNames = (items: ProbeItem[]) => {
+        const enabled = items.filter((item) => item.isActive).map((item) => item.name);
+        return enabled.length > 0 ? enabled : items.map((item) => item.name);
     };
 
     const toggleProbe = (probe: string) => {
@@ -935,32 +957,78 @@ export default function RunGarakPage() {
                                                     ))}
 
                                                     {/* Fetched Probes */}
-                                                    {availableProbes.length > 0 && availableProbes.some(p => !Object.values(PROBE_CATEGORIES).flat().includes(p)) && (
-                                                        <div className="space-y-2">
-                                                            <div className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase flex items-center gap-2">
-                                                                <div className="h-px bg-gray-200 dark:bg-gray-700 flex-1"></div>
-                                                                Discovered
+                                                    {/* Categorized Discovered Probes */}
+                                                    {availableProbes.length > 0 && (
+                                                        <div className="space-y-4">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="h-px bg-gray-200 dark:bg-gray-700 w-4"></div>
+                                                                <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Discovered Modules</span>
                                                                 <div className="h-px bg-gray-200 dark:bg-gray-700 flex-1"></div>
                                                             </div>
-                                                            <div className="grid grid-cols-2 gap-2">
-                                                                {availableProbes.filter(p => !Object.values(PROBE_CATEGORIES).flat().includes(p)).map(probe => (
-                                                                    <label key={probe} className={`
-                                                                        flex items-center space-x-2 p-2 rounded-lg border cursor-pointer transition-all
-                                                                        ${selectedProbes.includes(probe)
-                                                                            ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20'
-                                                                            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'}
-                                                                    `}>
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={selectedProbes.includes(probe)}
-                                                                            onChange={() => toggleProbe(probe)}
-                                                                            disabled={isRunning}
-                                                                            className="rounded text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 border-gray-300"
-                                                                        />
-                                                                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300 font-mono truncate" title={probe}>{probe}</span>
-                                                                    </label>
-                                                                ))}
-                                                            </div>
+                                                            <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                                                                🌟 Plugin module. 💤 Disabled by default (not auto-selected when module is run).
+                                                            </p>
+
+                                                            {availableProbes.map((group) => (
+                                                                <div key={group.name} className="border border-gray-200 dark:border-gray-800 rounded-lg p-3 bg-gray-50/30 dark:bg-gray-900/10">
+                                                                    <div className="flex items-center justify-between mb-2">
+                                                                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                                                            {group.name}
+                                                                            {group.isPlugin && (
+                                                                                <span className="text-xs" title="Plugin module">🌟</span>
+                                                                            )}
+                                                                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-mono">
+                                                                                {group.probes.length}
+                                                                            </span>
+                                                                        </h4>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const groupProbeNames = getDefaultEnabledNames(group.probes);
+                                                                                const allSelected = groupProbeNames.every(name => selectedProbes.includes(name));
+                                                                                if (allSelected) {
+                                                                                    setSelectedProbes(selectedProbes.filter(p => !groupProbeNames.includes(p)));
+                                                                                } else {
+                                                                                    const toAdd = groupProbeNames.filter(name => !selectedProbes.includes(name));
+                                                                                    setSelectedProbes([...selectedProbes, ...toAdd]);
+                                                                                }
+                                                                            }}
+                                                                            className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline"
+                                                                        >
+                                                                            Select Default
+                                                                        </button>
+                                                                    </div>
+                                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                                                        {group.probes.map(probe => (
+                                                                            <label key={probe.name} className={`
+                                                                                flex items-center space-x-2 p-2 rounded-lg border cursor-pointer transition-all relative group
+                                                                                ${selectedProbes.includes(probe.name)
+                                                                                    ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20'
+                                                                                    : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'}
+                                                                                ${!probe.isActive ? 'opacity-80' : ''}
+                                                                            `}>
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={selectedProbes.includes(probe.name)}
+                                                                                    onChange={() => toggleProbe(probe.name)}
+                                                                                    disabled={isRunning}
+                                                                                    className="rounded text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 border-gray-300"
+                                                                                />
+                                                                                <div className="flex flex-col min-w-0">
+                                                                                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300 font-mono truncate" title={probe.name}>
+                                                                                        {probe.name}
+                                                                                    </span>
+                                                                                    {!probe.isActive && (
+                                                                                        <span className="text-[9px] text-amber-600 dark:text-amber-500">
+                                                                                            💤 Disabled by default
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                            </label>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     )}
                                                 </div>
@@ -995,23 +1063,79 @@ export default function RunGarakPage() {
                                                             <span className="text-xs font-medium text-gray-700 dark:text-gray-300 font-mono truncate" title={detector}>{detector}</span>
                                                         </label>
                                                     ))}
-                                                    {availableDetectors.filter(d => !DETECTORS.includes(d)).map(detector => (
-                                                        <label key={detector} className={`
-                                                            flex items-center space-x-2 p-2 rounded-lg border cursor-pointer transition-all
-                                                            ${selectedDetectors.includes(detector)
-                                                                ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-900/20'
-                                                                : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-700'}
-                                                        `}>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selectedDetectors.includes(detector)}
-                                                                onChange={() => toggleDetector(detector)}
-                                                                disabled={isRunning}
-                                                                className="rounded text-purple-600 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 border-gray-300"
-                                                            />
-                                                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300 font-mono truncate" title={detector}>{detector}</span>
-                                                        </label>
-                                                    ))}
+                                                    {availableDetectors.length > 0 && (
+                                                        <div className="space-y-4 col-span-2 mt-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="h-px bg-gray-200 dark:bg-gray-700 w-4"></div>
+                                                                <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Discovered Detectors</span>
+                                                                <div className="h-px bg-gray-200 dark:bg-gray-700 flex-1"></div>
+                                                            </div>
+                                                            <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                                                                🌟 Plugin module. 💤 Disabled by default (not auto-selected when module is run).
+                                                            </p>
+
+                                                            {availableDetectors.map((group) => (
+                                                                <div key={group.name} className="border border-gray-200 dark:border-gray-800 rounded-lg p-3 bg-gray-50/30 dark:bg-gray-900/10">
+                                                                    <div className="flex items-center justify-between mb-2">
+                                                                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                                                            {group.name}
+                                                                            {group.isPlugin && (
+                                                                                <span className="text-xs" title="Plugin module">🌟</span>
+                                                                            )}
+                                                                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 font-mono">
+                                                                                {group.probes.length}
+                                                                            </span>
+                                                                        </h4>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const groupNames = getDefaultEnabledNames(group.probes);
+                                                                                const allSelected = groupNames.every(name => selectedDetectors.includes(name));
+                                                                                if (allSelected) {
+                                                                                    setSelectedDetectors(selectedDetectors.filter(d => !groupNames.includes(d)));
+                                                                                } else {
+                                                                                    const toAdd = groupNames.filter(name => !selectedDetectors.includes(name));
+                                                                                    setSelectedDetectors([...selectedDetectors, ...toAdd]);
+                                                                                }
+                                                                            }}
+                                                                            className="text-[10px] text-purple-600 dark:text-purple-400 hover:underline"
+                                                                        >
+                                                                            Select Default
+                                                                        </button>
+                                                                    </div>
+                                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                                        {group.probes.map(probe => (
+                                                                            <label key={probe.name} className={`
+                                                                                flex items-center space-x-2 p-2 rounded-lg border cursor-pointer transition-all relative group
+                                                                                ${selectedDetectors.includes(probe.name)
+                                                                                    ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-900/20'
+                                                                                    : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-700'}
+                                                                                ${!probe.isActive ? 'opacity-80' : ''}
+                                                                            `}>
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={selectedDetectors.includes(probe.name)}
+                                                                                    onChange={() => toggleDetector(probe.name)}
+                                                                                    disabled={isRunning}
+                                                                                    className="rounded text-purple-600 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 border-gray-300"
+                                                                                />
+                                                                                <div className="flex flex-col min-w-0">
+                                                                                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300 font-mono truncate" title={probe.name}>
+                                                                                        {probe.name}
+                                                                                    </span>
+                                                                                    {!probe.isActive && (
+                                                                                        <span className="text-[9px] text-amber-600 dark:text-amber-500">
+                                                                                            💤 Disabled by default
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                            </label>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <input
                                                     type="text"
