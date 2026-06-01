@@ -10,8 +10,9 @@ A comprehensive web dashboard for [Garak](https://github.com/NVIDIA/garak) - the
 2. [Garak Concepts](#2-garak-concepts)
 3. [Vulntrex Installation](#3-Vulntrex-installation)
 4. [Running Vulntrex](#4-running-Vulntrex)
-5. [Vulntrex Walkthrough](#5-Vulntrex-walkthrough)
-6. [REST API Scanning Guide](#6-rest-api-scanning-guide)
+5. [Screenshots](#5-screenshots)
+6. [Vulntrex Walkthrough](#6-Vulntrex-walkthrough)
+7. [REST API Scanning Guide](#7-rest-api-scanning-guide)
 
 ---
 
@@ -140,7 +141,20 @@ npm start
 
 ---
 
-## 5. Vulntrex Walkthrough
+## 5. Screenshots
+
+| | |
+|---|---|
+| ![Dashboard](screenshots/01-dashboard.png) | ![Learn Garak](screenshots/02-learn-garak.png) |
+| **Dashboard** — Landing page with scan stats and quick actions | **Learn Garak** — Step-by-step Garak installation guide |
+| ![Run Scan](screenshots/03-run-scan.png) | ![Scan Results](screenshots/04-scan-results.png) |
+| **Run Scan** — Configure provider, probes, detectors & launch | **Scan Results** — Browse and filter all completed scans |
+| ![Compare](screenshots/05-compare.png) | ![Upload](screenshots/06-upload.png) |
+| **Compare** — Side-by-side regression analysis between runs | **Upload** — Import existing Garak `report.jsonl` reports |
+
+---
+
+## 6. Vulntrex Walkthrough
 
 ### Dashboard (`/`)
 The main landing page showing:
@@ -185,7 +199,7 @@ Import existing Garak reports:
 
 ---
 
-## 6. REST API Scanning Guide
+## 7. REST API Scanning Guide
 
 This is the most important feature for testing custom chatbots and APIs.
 
